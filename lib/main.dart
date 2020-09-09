@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Mercado Pago',
+      title: 'Cobro de membresias',
       theme: ThemeData(
         primarySwatch: Colors.red,
         primaryColor: Colors.red.shade700,
@@ -30,92 +30,177 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  @override
-  initState() {
-    const channelMercadoPagoRespuesta =
-        const MethodChannel('cracks.com/pagosRespuesta');
-    channelMercadoPagoRespuesta.setMethodCallHandler((MethodCall call) async {
-      switch (call.method) {
-        case "mercadoPagoOkey":
-          var idPago = call.arguments[0];
-          var status = call.arguments[1];
-          var statusDetails = call.arguments[2];
-          return mercadoPagoOkey(idPago, status, statusDetails);
-        case "mercadoPagoError":
-          var error = call.arguments[0];
-          return mercadoPagoError(error);
-      }
-    });
-    super.initState();
-  }
 
-  void mercadoPagoOkey(idPago, status, statusDetails) {
-    print("idPago: $idPago");
-    print("status: $status");
-    print("statusDetails: $statusDetails");
-  }
+  bool _opcionDeMembresiaMensual = false;
+  bool _opcionDeMembresiaAnual = false;
+  int _opcionDePago = 0;
 
-  void mercadoPagoError(error) {
-    print("error: $error");
-  }
-
-  Future<Map<String, dynamic>> creaPreferencia() async {
+  Future<Map<String, dynamic>> creaPreferencia(nuevoItem, nuevoCliente) async {
+    print(nuevoItem[0]);
+    List<String> _item = List<String>();
+    List<String> _payer = List<String>();
+    _item = nuevoItem;
+    _payer = nuevoCliente;
+    String _title = _item[0];
+    int _quantity = int.parse(_item[1]);
+    String _currency = _item[2];
+    double _price = double.parse(_item[3]);
+    String _name = _payer[0];
+    String _email = _payer[1];
     var mp = MP(globals.mercadoPagoClientID, globals.mercadoPagoClientSecret);
     var preference = {
       "items": [
         {
-          "title": "Test",
-          "quantity": 1,
-          "currency_id": "MXN",
-          "unit_price": 10.4
+          "title": _title,
+          "quantity": _quantity,
+          "currency_id": _currency,
+          "unit_price": _price,
+          "operation_type": "recurring_payment",
         }
       ],
-      "payer": {"name": "JCtheChic", "email": "ing.jcgncracks@gmail.com"},
-      // Determinas los tipos de pagos.
-      //"payment_methods": {
-      //        "excluded_payment_types": [
-      //          {"id": "atm"},
-      //          {"id": "prepaid_card"},
-      //        ],
-      //      },
+      "payer": {"name": _name, "email": _email},
     };
     var result = await mp.createPreference(preference);
     return result;
   }
 
-  Future<void> ejecutarMercadoPago() async {
-    //print('Ejecutando Mercado Pago...');
-    creaPreferencia().then((result) {
-      if (result != null) {
-        var preferenceID = result['response']['id'];
-        //print('Preferencia: ${preferenceID}');
-        try {
-          const channelMercadoPago = const MethodChannel('cracks.com/pagos');
-          final response = channelMercadoPago.invokeMethod(
-              'mercadoPago', <String, dynamic>{
-            "publicKey": globals.mercadoPagoTestPublicKey,
-            "preferenceID": preferenceID
-          });
-          print('response: $response');
-        } on PlatformException catch (e) {
-          print('Error: ${e.message}');
+  List<String> creaItem(
+      String titulo, String cantidad, String moneda, String precio) {
+    List<String> _item = List<String>();
+    _item.add(titulo);
+    _item.add(cantidad);
+    _item.add(moneda);
+    _item.add(precio);
+    return _item;
+  }
+
+  List<String> creaCliente(String nombre, String correoElectronico) {
+    List<String> _item = List<String>();
+    _item.add(nombre);
+    _item.add(correoElectronico);
+    return _item;
+  }
+
+  void ejecutarMercadoPago(int opcionPago) async {
+    if(opcionPago == 1) {
+      creaPreferencia(creaItem("Plan Básico 499.00", "1", "MXN", "499.00"),
+          creaCliente("Cliente de Prueba", "prueba@cliente.com"))
+          .then((result) {
+        if (result != null) {
+          var preferenceID = result['response']['id'];
+          try {
+            const channelMercadoPago = const MethodChannel('cracks.com/pagos');
+            final response = channelMercadoPago.invokeMethod(
+                'mercadoPago', <String, dynamic>{
+              "publicKey": globals.mercadoPagoTestPublicKey,
+              "preferenceID": preferenceID
+            });
+          } on PlatformException catch (e) {
+            print('Error: ${e.message}');
+          }
         }
-      }
-    });
+      });
+    }
+    if(opcionPago == 2) {
+      creaPreferencia(creaItem("Plan Premium 749.00", "1", "MXN", "749.00"),
+          creaCliente("Cliente de Prueba", "prueba@cliente.com"))
+          .then((result) {
+        if (result != null) {
+          var preferenceID = result['response']['id'];
+          try {
+            const channelMercadoPago = const MethodChannel('cracks.com/pagos');
+            final response = channelMercadoPago.invokeMethod(
+                'mercadoPago', <String, dynamic>{
+              "publicKey": globals.mercadoPagoTestPublicKey,
+              "preferenceID": preferenceID
+            });
+          } on PlatformException catch (e) {
+            print('Error: ${e.message}');
+          }
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Mercado Pago'),
+    final title = 'Pago de Membresias CRACKS';
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: title,
+      theme: ThemeData(
+        primarySwatch: Colors.red,
+        primaryColor: Colors.red.shade700,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      body: Center(
-        child: MaterialButton(
-          onPressed: ejecutarMercadoPago,
-          color: Colors.red,
-          child: Text('¡Comprar con mercado pago!',
-              style: TextStyle(color: Colors.white)),
+      home: Scaffold(
+        appBar: AppBar(
+          title: Text("¡Paga aquí tu membresia anual!"),
+        ),
+        body: Container(
+          child: ListView(
+            children: <Widget>[
+              Container(
+                child: Image.asset('assets/logos/logo_v01.png',
+                  height: 90.0,
+                  width: 100.0,
+                ),
+              ),
+              SizedBox(height: 30.0),
+              Container(
+                child: CheckboxListTile(
+                  title: Text("\$499.00 Plan Básico"),
+                  secondary: Icon(Icons.payment),
+                  controlAffinity:
+                  ListTileControlAffinity.platform,
+                  value: _opcionDeMembresiaMensual,
+                  onChanged: (bool valor) {
+                    setState(() {
+                      _opcionDeMembresiaMensual = valor;
+                      _opcionDeMembresiaAnual = false;
+                      _opcionDePago = 1;
+                    });
+                  },
+                  activeColor: Colors.white,
+                  checkColor: Colors.red,
+                ),
+              ),
+              SizedBox(height: 10.0),
+              Container(
+                child: CheckboxListTile(
+                  title: Text("\$749.00 Plan Premium"),
+                  secondary: Icon(Icons.payment),
+                  controlAffinity:
+                  ListTileControlAffinity.platform,
+                  value: _opcionDeMembresiaAnual,
+                  onChanged: (bool valor) {
+                    setState(() {
+                      _opcionDeMembresiaAnual = valor;
+                      _opcionDeMembresiaMensual = false;
+                      _opcionDePago = 2;
+                    });
+                  },
+                  activeColor: Colors.white,
+                  checkColor: Colors.red,
+                ),
+              ),
+              SizedBox(height: 50.0),
+              SizedBox(
+                width:  30.0,
+                height: 50.0,
+                child: MaterialButton(
+                  //height: 50.0,
+                  hoverColor: Colors.white,
+                  onPressed: () {
+                    ejecutarMercadoPago(_opcionDePago);
+                  },
+                  color: Colors.red,
+                  child: Text('PAGAR',
+                    style: TextStyle(color: Colors.white),),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
